@@ -32,8 +32,7 @@ jobs:
           pip install pyinstaller numpy opencv-python matplotlib flyr
 
       - name: Build analyzer executable (onedir)
-        run: |
-          pyinstaller `
+        run: pyinstaller `
   		--onedir `
   		--noconsole `
  		--name analyzer `
