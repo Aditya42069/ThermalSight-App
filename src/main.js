@@ -1,5 +1,5 @@
 // src/main.js
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 
@@ -7,15 +7,14 @@ let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1024,
-    height: 768,
+    width: 1280,
+    height: 800,
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false // For simplicity in this tutorial
-    }
+      contextIsolation: false,
+    },
   });
 
-  // In development, load the React local server. In production, load the built HTML.
   if (app.isPackaged) {
     mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
   } else {
@@ -25,36 +24,103 @@ function createWindow() {
 
 app.whenReady().then(createWindow);
 
-// This listens for React asking to run the Python analysis
-ipcMain.handle('run-analysis', async (event, imagePath, outputDir) => {
+// ── helper: resolve the Python executable / script path ──────────────────────
+function getBackendArgs(command, extraArgs) {
+  if (app.isPackaged) {
+    // PyInstaller onedir bundle: resources/backend/analyzer(.exe)
+    const ext      = process.platform === 'win32' ? '.exe' : '';
+    const exePath  = path.join(process.resourcesPath, 'backend', `analyzer${ext}`);
+    return { executable: exePath, args: [command, ...extraArgs] };
+  } else {
+    // Development: run the Python script directly
+    return {
+      executable: 'python',
+      args: [path.join(__dirname, '..', 'backend', 'analyzer.py'), command, ...extraArgs],
+    };
+  }
+}
+
+// ── helper: spawn + collect stdout → parse JSON ───────────────────────────────
+function runPython(command, extraArgs) {
   return new Promise((resolve, reject) => {
-    // Determine where the Python executable is located
-    let executablePath;
-    if (app.isPackaged) {
-        // In the final app, it will be bundled here
-        executablePath = path.join(process.resourcesPath, 'backend', 'analyzer.exe'); 
-        // Note: on Mac/Linux, omit the .exe extension
-    } else {
-        // In development, we just run the python script directly
-        executablePath = 'python'; 
-    }
+    const { executable, args } = getBackendArgs(command, extraArgs);
 
-    const args = app.isPackaged 
-        ? [imagePath, outputDir] 
-        : ['../backend/analyzer.py', imagePath, outputDir];
+    console.log(`[backend] ${executable} ${args.join(' ')}`);
+    const proc = spawn(executable, args);
 
-    const pythonProcess = spawn(executablePath, args);
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', (d) => { stdout += d.toString(); });
+    proc.stderr.on('data', (d) => {
+      stderr += d.toString();
+      console.error(`[python] ${d.toString().trim()}`);
+    });
 
-    let outputData = '';
-    pythonProcess.stdout.on('data', (data) => { outputData += data.toString(); });
-    pythonProcess.stderr.on('data', (data) => { console.error(`Error: ${data}`); });
-
-    pythonProcess.on('close', (code) => {
+    proc.on('close', (code) => {
       if (code === 0) {
-        resolve(JSON.parse(outputData)); // Send the JSON response back to React
+        try {
+          resolve(JSON.parse(stdout.trim()));
+        } catch (e) {
+          reject(`JSON parse error: ${e.message}\nRaw output: ${stdout}`);
+        }
       } else {
-        reject('Analysis failed');
+        // Try to parse the error JSON the script emits on failure
+        try {
+          const errObj = JSON.parse(stdout.trim());
+          reject(errObj.error || `Process exited with code ${code}`);
+        } catch {
+          reject(`Process exited with code ${code}.\nStderr: ${stderr}`);
+        }
       }
     });
+
+    proc.on('error', (err) => {
+      reject(`Failed to start backend: ${err.message}`);
+    });
   });
+}
+
+// ── IPC: run-analysis ─────────────────────────────────────────────────────────
+// Called by React with: ipcRenderer.invoke('run-analysis', imagePath, outputDir)
+// Returns JSON: { status, stem, out_dir, shape, temp_min, temp_max, images, csvs }
+ipcMain.handle('run-analysis', async (_event, imagePath, outputDir) => {
+  return runPython('analyze', [imagePath, outputDir]);
+});
+
+// ── IPC: measure-roi ──────────────────────────────────────────────────────────
+// Called by React with:
+//   ipcRenderer.invoke('measure-roi', imagePath, cx, cy, r_cm, pxPerCm, outputDir)
+// Returns JSON: { status, csv_path, directional, stats, dominant, grad_per_cm, … }
+ipcMain.handle('measure-roi', async (_event, imagePath, cx, cy, r_cm, pxPerCm, outputDir) => {
+  return runPython('roi', [
+    imagePath,
+    String(Math.round(cx)),
+    String(Math.round(cy)),
+    String(r_cm),
+    String(pxPerCm),
+    outputDir,
+  ]);
+});
+
+// ── IPC: open-file-dialog ─────────────────────────────────────────────────────
+// Convenience so React can open a native file picker without nodeIntegration hacks
+ipcMain.handle('open-file-dialog', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Select FLIR / thermal image',
+    filters: [
+      { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'tiff', 'tif'] },
+      { name: 'All files', extensions: ['*'] },
+    ],
+    properties: ['openFile'],
+  });
+  return result.canceled ? null : result.filePaths[0];
+});
+
+// ── IPC: open-folder-dialog ───────────────────────────────────────────────────
+ipcMain.handle('open-folder-dialog', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Select output folder',
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  return result.canceled ? null : result.filePaths[0];
 });

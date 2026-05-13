@@ -1,11 +1,10 @@
-name: Build and Release Cross-Platform App
+name: Build and Release ThermalSight
 
 on:
   push:
     tags:
       - 'v*'
 
-# WE ADDED THIS BLOCK TO GIVE THE BOT PERMISSION TO UPLOAD THE FILES
 permissions:
   contents: write
 
@@ -14,37 +13,54 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
-    
+
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Check out code
+      - name: Checkout
         uses: actions/checkout@v4
 
+      # ── Python backend ───────────────────────────────────────────────────────
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Install Python Dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller numpy opencv-python matplotlib
+          pip install pyinstaller numpy opencv-python matplotlib flyr
 
-      - name: Build Python Executable
-        run: pyinstaller --onedir --noconsole backend/analyzer.py --distpath backend/dist
+      - name: Build analyzer executable (onedir)
+        run: |
+          pyinstaller \
+            --onedir \
+            --noconsole \
+            --name analyzer \
+            --distpath backend/dist \
+            --hidden-import cv2 \
+            --hidden-import matplotlib \
+            --hidden-import matplotlib.backends.backend_agg \
+            --hidden-import numpy \
+            --hidden-import flyr \
+            backend/analyzer.py
 
+      # ── Electron frontend ────────────────────────────────────────────────────
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install Node Dependencies
+      - name: Install Node dependencies
         working-directory: ./src
         run: npm install
 
-      - name: Build and Publish with Electron-Builder
+      - name: Build Vite frontend
+        working-directory: ./src
+        run: npm run build
+
+      - name: Package with Electron Builder
         working-directory: ./src
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
-        run: npm run dist -- --publish always
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --publish always
