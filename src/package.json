@@ -1,6 +1,9 @@
 {
   "name": "thermalsight",
   "version": "1.0.0",
+  "description": "Thermal Analysis Student Explorer",
+  "author": "Aditya",
+  "repository": "https://github.com/Aditya42069/ThermalSight-App",
   "main": "main.js",
   "scripts": {
     "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
