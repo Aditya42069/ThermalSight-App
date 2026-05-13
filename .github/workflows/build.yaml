@@ -1,14 +1,16 @@
 name: Build and Release Cross-Platform App
 
-# This tells GitHub to only run the build when you push a version tag (like v1.0.0)
 on:
   push:
     tags:
       - 'v*'
 
+# WE ADDED THIS BLOCK TO GIVE THE BOT PERMISSION TO UPLOAD THE FILES
+permissions:
+  contents: write
+
 jobs:
   build:
-    # This matrix spins up 3 cloud computers: Windows, Mac, and Linux
     strategy:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
@@ -44,6 +46,5 @@ jobs:
       - name: Build and Publish with Electron-Builder
         working-directory: ./src
         env:
-          # This token is automatically provided by GitHub to upload the final .exe/.dmg
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
         run: npm run dist -- --publish always
