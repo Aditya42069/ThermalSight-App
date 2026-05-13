@@ -1,0 +1,36 @@
+{
+  "name": "thermalsight",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "build": "vite build",
+    "dist": "npm run build && electron-builder"
+  },
+  "build": {
+    "appId": "com.edu.thermalsight",
+    "directories": {
+      "output": "release"
+    },
+    "extraResources": [
+      {
+        "from": "../backend/dist/analyzer",
+        "to": "backend"
+      }
+    ],
+    "mac": { "target": "dmg" },
+    "win": { "target": "nsis" },
+    "linux": { "target": "AppImage" }
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.0.0",
+    "electron": "^25.0.0",
+    "electron-builder": "^24.0.0",
+    "vite": "^4.3.2",
+    "wait-on": "^7.0.1"
+  }
+}

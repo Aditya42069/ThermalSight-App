@@ -1,0 +1,49 @@
+name: Build and Release Cross-Platform App
+
+# This tells GitHub to only run the build when you push a version tag (like v1.0.0)
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    # This matrix spins up 3 cloud computers: Windows, Mac, and Linux
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller numpy opencv-python matplotlib
+
+      - name: Build Python Executable
+        run: pyinstaller --onedir --noconsole backend/analyzer.py --distpath backend/dist
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node Dependencies
+        working-directory: ./src
+        run: npm install
+
+      - name: Build and Publish with Electron-Builder
+        working-directory: ./src
+        env:
+          # This token is automatically provided by GitHub to upload the final .exe/.dmg
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+        run: npm run dist -- --publish always
