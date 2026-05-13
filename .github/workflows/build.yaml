@@ -32,18 +32,8 @@ jobs:
           pip install pyinstaller numpy opencv-python matplotlib flyr
 
       - name: Build analyzer executable (onedir)
-        run: pyinstaller `
-  		--onedir `
-  		--noconsole `
- 		--name analyzer `
-  		--distpath backend/dist `
-  		--hidden-import cv2 `
-  		--hidden-import matplotlib `
-  		--hidden-import matplotlib.backends.backend_agg `
-  		--hidden-import numpy `
-  		--hidden-import flyr `
-  backend/analyzer.py
-
+        run: |
+          pyinstaller --onedir --noconsole --name analyzer --distpath backend/dist --hidden-import cv2 --hidden-import matplotlib --hidden-import matplotlib.backends.backend_agg --hidden-import numpy --hidden-import flyr backend/analyzer.py
 
       # ── Electron frontend ────────────────────────────────────────────────────
       - name: Set up Node.js
