@@ -1,7 +1,5 @@
 /* ── ThermalSight — dark industrial theme ─────────────────────────────────── */
 
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
@@ -20,8 +18,8 @@
   --green:    #69f0ae;
   --red:      #ff5252;
 
-  --font-ui:   'IBM Plex Sans', sans-serif;
-  --font-mono: 'IBM Plex Mono', monospace;
+  --font-ui:   'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
 
   --radius:   6px;
   --radius-lg:12px;

@@ -1,7 +1,14 @@
 import React, { useState, useRef, useCallback } from 'react';
 import './App.css';
 
-const { ipcRenderer } = window.require('electron');
+// Safe ipcRenderer — won't crash if window.require isn't ready
+let ipcRenderer;
+try {
+  ipcRenderer = window.require('electron').ipcRenderer;
+} catch (e) {
+  console.error('ipcRenderer unavailable:', e);
+  ipcRenderer = { invoke: async () => { throw new Error('Electron IPC unavailable'); } };
+}
 
 // Windows-safe file:// URL
 const toFileUrl = (p) => {
@@ -155,13 +162,17 @@ export default function App() {
 
   // ── open folder ───────────────────────────────────────────────────────────
   const openFolder = () => {
-    const { shell } = window.require('electron');
-    shell.openPath(results.out_dir);
+    try {
+      const { shell } = window.require('electron');
+      shell.openPath(results.out_dir);
+    } catch(e) { alert('Cannot open folder: ' + results.out_dir); }
   };
 
   const showCsv = (p) => {
-    const { shell } = window.require('electron');
-    shell.showItemInFolder(p);
+    try {
+      const { shell } = window.require('electron');
+      shell.showItemInFolder(p);
+    } catch(e) { alert('CSV saved at: ' + p); }
   };
 
   // ── status bar text ───────────────────────────────────────────────────────
