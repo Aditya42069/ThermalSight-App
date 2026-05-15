@@ -18,7 +18,8 @@
     "extraResources": [
       {
         "from": "../backend/dist/analyzer",
-        "to": "backend"
+        "to": "backend/analyzer",
+        "filter": ["**/*"]
       }
     ],
     "mac": { "target": "dmg" },
